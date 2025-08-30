@@ -3,28 +3,40 @@
 import os
 import github
 import google.generativeai as genai
+import requests # <-- THÊM DÒNG NÀY
 
+# --- BẮT ĐẦU THAY THẾ TỪ ĐÂY ---
 def get_pr_diff(repo_name, pr_number, github_token):
-    """Lấy nội dung thay đổi (diff) của một Pull Request."""
+    """Lấy nội dung thay đổi (diff) của một Pull Request bằng cách gọi API trực tiếp."""
+    # URL để lấy diff của PR theo API của GitHub
+    diff_url = f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}"
+    
+    # Headers cần thiết cho yêu cầu
+    headers = {
+        # 'Accept' header để yêu cầu định dạng diff
+        'Accept': 'application/vnd.github.v3.diff',
+        # 'Authorization' header để xác thực bằng GITHUB_TOKEN
+        'Authorization': f'token {github_token}'
+    }
+    
     try:
-        g = github.Github(github_token)
-        # repo_name có dạng "owner/repo"
-        repo = g.get_repo(repo_name)
-        pr = repo.get_pull(pr_number)
-        # Lấy diff dưới dạng text
-        return pr.get_diff()
-    except Exception as e:
-        print(f"Lỗi khi lấy PR diff: {e}")
+        response = requests.get(diff_url, headers=headers)
+        response.raise_for_status()  # Sẽ báo lỗi nếu request thất bại (status code không phải 2xx)
+        return response.text
+    except requests.exceptions.RequestException as e:
+        print(f"Lỗi khi lấy PR diff từ API: {e}")
+        # In thêm nội dung lỗi từ GitHub nếu có
+        print(f"Response từ GitHub: {response.text}")
         return None
+# --- KẾT THÚC PHẦN THAY THẾ ---
+
 
 def get_gemini_review(code_diff, api_key):
-    """Gửi diff đến Gemini và nhận lại review."""
+    # ... (phần còn lại của hàm này giữ nguyên)
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-pro')
 
-        # Đây là phần quan trọng nhất: "Prompt Engineering"
-        # Bạn có thể tùy chỉnh câu lệnh này để Gemini đưa ra review tốt hơn
         prompt = f"""
         Bạn là một chuyên gia review code giàu kinh nghiệm. Hãy phân tích những thay đổi trong Pull Request dưới đây (định dạng diff).
         Đưa ra những nhận xét ngắn gọn, rõ ràng và mang tính xây dựng. Tập trung vào các vấn đề sau:
@@ -51,7 +63,7 @@ def get_gemini_review(code_diff, api_key):
 
 
 def post_pr_comment(repo_name, pr_number, comment_body, github_token):
-    """Đăng bình luận vào Pull Request."""
+    # ... (hàm này giữ nguyên)
     try:
         g = github.Github(github_token)
         repo = g.get_repo(repo_name)
@@ -61,14 +73,11 @@ def post_pr_comment(repo_name, pr_number, comment_body, github_token):
     except Exception as e:
         print(f"Lỗi khi đăng bình luận: {e}")
 
-
+# ... (phần if __name__ == "__main__": giữ nguyên)
 if __name__ == "__main__":
-    # Lấy thông tin từ các biến môi trường do GitHub Actions cung cấp
     github_token = os.environ.get("GITHUB_TOKEN")
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
     repo_name = os.environ.get("GITHUB_REPOSITORY")
-    
-    # GITHUB_REF có dạng "refs/pull/123/merge", chúng ta cần lấy số 123
     pr_number_str = os.environ.get("GITHUB_REF").split('/')[2]
     pr_number = int(pr_number_str)
 
@@ -78,14 +87,10 @@ if __name__ == "__main__":
 
     print(f"Bắt đầu review PR #{pr_number} tại repository {repo_name}...")
 
-    # 1. Lấy diff
     diff = get_pr_diff(repo_name, pr_number, github_token)
 
     if diff:
-        # 2. Lấy review từ Gemini
         review_comment = get_gemini_review(diff, gemini_api_key)
-
-        # 3. Đăng comment
         final_comment = f"### 🤖 Gemini AI Code Review\n\n---\n\n{review_comment}"
         post_pr_comment(repo_name, pr_number, final_comment, github_token)
     else:
