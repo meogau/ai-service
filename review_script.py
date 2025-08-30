@@ -27,7 +27,7 @@ def get_gemini_review(code_diff, api_key):
     # ... (phần còn lại của hàm này giữ nguyên)
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-2.5-pro-preview-tts')
 
         prompt = f"""
         Bạn là một chuyên gia review code giàu kinh nghiệm. Hãy phân tích những thay đổi trong Pull Request dưới đây (định dạng diff).
