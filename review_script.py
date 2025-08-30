@@ -5,30 +5,22 @@ import github
 import google.generativeai as genai
 import requests # <-- THÊM DÒNG NÀY
 
-# --- BẮT ĐẦU THAY THẾ TỪ ĐÂY ---
+# Phiên bản ĐÚNG của hàm get_pr_diff
 def get_pr_diff(repo_name, pr_number, github_token):
     """Lấy nội dung thay đổi (diff) của một Pull Request bằng cách gọi API trực tiếp."""
-    # URL để lấy diff của PR theo API của GitHub
     diff_url = f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}"
-    
-    # Headers cần thiết cho yêu cầu
     headers = {
-        # 'Accept' header để yêu cầu định dạng diff
         'Accept': 'application/vnd.github.v3.diff',
-        # 'Authorization' header để xác thực bằng GITHUB_TOKEN
         'Authorization': f'token {github_token}'
     }
-    
     try:
         response = requests.get(diff_url, headers=headers)
-        response.raise_for_status()  # Sẽ báo lỗi nếu request thất bại (status code không phải 2xx)
+        response.raise_for_status()
         return response.text
     except requests.exceptions.RequestException as e:
         print(f"Lỗi khi lấy PR diff từ API: {e}")
-        # In thêm nội dung lỗi từ GitHub nếu có
         print(f"Response từ GitHub: {response.text}")
         return None
-# --- KẾT THÚC PHẦN THAY THẾ ---
 
 
 def get_gemini_review(code_diff, api_key):
